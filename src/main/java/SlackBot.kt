@@ -14,14 +14,14 @@ fun main(args: Array<String>) {
     //Generates a key
     var keys = Keys()
 
-    keys.portNumber = 7000//Integer.parseInt(args[0])
+    keys.portNumber = 0//Integer.parseInt(args[0])
     val databaseManager = DatabaseManager(keys)
     keys = databaseManager.getBotDetails()
 
     //Starts a session
 
     //val session = SlackSessionFactory.createWebSocketSlackSession(keys.slackKey)
-    val session = SlackSessionFactory.createWebSocketSlackSession("xoxb-214755769154-NX9Y6gbnPAfMsmQ40I2iKPyI")
+    val session = SlackSessionFactory.createWebSocketSlackSession("")
     session.connect()
 
     //Checks if the team exists in a database
