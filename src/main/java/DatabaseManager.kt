@@ -1,19 +1,42 @@
 import com.ullink.slack.simpleslackapi.SlackTeam
+import com.ullink.slack.simpleslackapi.SlackUser
+import objects.SlackDetails
+import objects.SurveyQuestions
+import objects.UserActivity
 import java.sql.*
 import java.util.*
 import java.sql.Timestamp
 import java.util.Date
+import kotlin.collections.ArrayList
 
 
 /**
  * Created by Mateusz on 22/05/2017.
  */
 
-class DatabaseManager(var keys: Keys) {
+class DatabaseManager(var keys: Keys)  {
     private var mConnection: Connection? = null
     private var DB_URL: String = keys.databaseURL
     private var USER: String = keys.databaseUser
     private var PASS: String = keys.databasePass
+    private val ACTIVITYTRACKER = "activityTracker"
+    private val SLACKUSERID = "slackUserId"
+    private val WELCOMEDMCHECK = "welcomeDM"
+    private val TIMEZONE = "timezoneSetUp"
+    private val SURVEYDUMMYCHECK = "surveyDummy"
+    private val SURVEYMBTICHECK = "surveyMBTI"
+    private val SURVEYPAEICHECK = "surveyPAEI"
+    private val SURVEYVAKCHECK = "surveyVAK"
+    private val SURVEYNAME = "surveyName"
+    private val QUESTIONORDER = "questionOrder"
+    private val QUESTIONTEXT = "questionText"
+    private val LASTANSWEREDQUESTION = "lastAnsweredQuestion"
+    private val SURVEYQUESTION = "surveyQuestion"
+    private val SURVEYQUESTIONID= "surveyQuestionId"
+    private val OPTIONTEXT = "optionText"
+    private val OPTIONORDER = "optionOrder"
+    private val SURVEYOPTION = "surveyOption"
+    private val WELCOMEDM = "welcomeDM"
 
     private fun getConnection(): Connection {
         try {
@@ -56,13 +79,14 @@ class DatabaseManager(var keys: Keys) {
         }
     }
 
+
     fun writeMessageToDB(message: SlackDetails){
         try {
             val conn = getConnection()
 
             conn.createStatement(ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_UPDATABLE).use { stmt ->
 
-                val query = "INSERT INTO channelMessages (slackChannelId,writerSlackUserId,content,userLocalTime,slackMessageId,threadId,userTimezoneOffset,userTimezoneLabel) " + "VALUES (?,?,?,DATE_ADD(UTC_TIMESTAMP(), INTERVAL ${message.userTimezoneOffsetMilisec} SECOND),?,?,?,?)"
+                val query = "INSERT INTO chatMessage (slackChatId,writerSlackUserId,content,userLocalTime,slackMessageId,threadId,userTimezoneOffset,userTimezoneLabel) " + "VALUES (?,?,?,DATE_ADD(UTC_TIMESTAMP(), INTERVAL ${message.userTimezoneOffsetMilisec} SECOND),?,?,?,?)"
                 val preparedStatement = conn.prepareStatement(query, Statement.RETURN_GENERATED_KEYS)
                 preparedStatement.setString(1, message.channelID)
                 preparedStatement.setString(2, message.userID)
@@ -99,7 +123,7 @@ class DatabaseManager(var keys: Keys) {
 
             val conn = getConnection()
             conn.createStatement(ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_UPDATABLE).use { stmt ->
-                val query = "SELECT * FROM `channelMessages` WHERE slackMessageId = \"${message.slackMessageID}\" ORDER BY channelMessagesId DESC LIMIT 1;"
+                val query = "SELECT * FROM `chatMessage` WHERE slackMessageId = \"${message.slackMessageID}\" ORDER BY chatMessageId DESC LIMIT 1;"
                 val rs = stmt.executeQuery(query)
                 rs.next()
                 dbMessage = rs.getString("content")
@@ -118,7 +142,7 @@ class DatabaseManager(var keys: Keys) {
         try {
             val conn = getConnection()
             conn.createStatement(ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_UPDATABLE).use { stmt ->
-                val query = "SELECT count(1) FROM `channelMessages` WHERE slackMessageId = \"${message.slackMessageID}\";"
+                val query = "SELECT count(1) FROM `chatMessage` WHERE slackMessageId = \"${message.slackMessageID}\";"
                 val rs = stmt.executeQuery(query)
                 rs.next()
                 count = rs.getString(1).toInt()
@@ -144,12 +168,12 @@ class DatabaseManager(var keys: Keys) {
     @Throws(SQLException::class)
     fun saveMentionedInDatabase(rowID: Int, replaces: ArrayList<String>, conn: Connection) {
         for (userName in replaces) {
-            val query1 = "INSERT INTO messageMentions (channelMessageId, mentionedUserId) " + "VALUES (?,?)"
-            val preparedStatement1 = conn.prepareStatement(query1, Statement.RETURN_GENERATED_KEYS)
-            preparedStatement1.setInt(1, rowID)
-            preparedStatement1.setString(2, userName)
-            preparedStatement1.executeUpdate()
-            preparedStatement1.close()
+            val query = "INSERT INTO messageMention (chatMessageId, mentionedUserId) " + "VALUES (?,?)"
+            val preparedStatement = conn.prepareStatement(query)
+            preparedStatement.setInt(1, rowID)
+            preparedStatement.setString(2, userName)
+            preparedStatement.executeUpdate()
+            preparedStatement.close()
 
         }
         conn.close()
@@ -165,7 +189,7 @@ class DatabaseManager(var keys: Keys) {
             val conn = getConnection()
             conn.createStatement(ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_UPDATABLE).use { stmt ->
                 //                val query = "INSERT INTO slackUserStatusLog (slackUserId,email,status,userLocalTime,userTimezoneOffset,userTimezoneLabel) " + "VALUES (?,?,?,DATE_ADD(NOW(), INTERVAL ${message.userTimezoneOffsetMilisec} SECOND),?,?)"
-                val query = "INSERT INTO slackUserStatusLog (slackUserId,email,status,userLocalTime,userTimezoneOffset,userTimezoneLabel) " + "VALUES (?,?,?,DATE_ADD(UTC_TIMESTAMP(), INTERVAL ${message.userTimezoneOffsetMilisec} SECOND),?,?)"
+                val query = "INSERT INTO slackUserStatusLog ($SLACKUSERID,email,status,userLocalTime,userTimezoneOffset,userTimezoneLabel) " + "VALUES (?,?,?,DATE_ADD(UTC_TIMESTAMP(), INTERVAL ${message.userTimezoneOffsetMilisec} SECOND),?,?)"
                 val preparedStatement = conn.prepareStatement(query)
 
                 preparedStatement.setString(1, message.userID)
@@ -193,13 +217,13 @@ class DatabaseManager(var keys: Keys) {
         try {
             val conn = getConnection()
             conn.createStatement(ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_UPDATABLE).use { stmt ->
-                var query = "SELECT * FROM slackChannel WHERE slackChannelId = \"${message.channelID}\";"
+                var query = "SELECT * FROM slackChat WHERE slackChatId = \"${message.channelID}\";"
                 val rs = stmt.executeQuery(query)
 
                 if (!rs.isBeforeFirst) {
                     rs.close()
 
-                    query = "INSERT INTO slackChannel (slackChannelId,slackSiteId,name) " + "VALUES (?,?,?)"
+                    query = "INSERT INTO slackChat (slackChatId,slackSiteId,name) " + "VALUES (?,?,?)"
                     val preparedStatement = conn.prepareStatement(query)
                     preparedStatement.setString(1, message.channelID)
                     preparedStatement.setString(2, message.slackSideID)
@@ -213,6 +237,71 @@ class DatabaseManager(var keys: Keys) {
         } catch (e: SQLException) {
             e.printStackTrace()
         }
+    }
+
+    fun checkUserActivityStage(slackDetails: SlackDetails) : UserActivity{
+        val userActivity : UserActivity= UserActivity()
+        try {
+            val conn = getConnection()
+            conn.createStatement(ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_UPDATABLE).use { stmt ->
+                val query = "SELECT * FROM $ACTIVITYTRACKER WHERE $SLACKUSERID = \"${slackDetails.userID}\""
+                val rs = stmt.executeQuery(query)
+                while (rs.next()) {
+                    userActivity.userID=rs.getString(SLACKUSERID)
+                    userActivity.welcomeMessage= rs.getInt(WELCOMEDMCHECK)
+                    userActivity.timezoneCheck = rs.getInt(TIMEZONE)
+                    userActivity.surveyDummy = rs.getInt(SURVEYDUMMYCHECK)
+                    userActivity.surveyMBTI = rs.getInt(SURVEYMBTICHECK)
+                    userActivity.surveyPAEI = rs.getInt(SURVEYPAEICHECK)
+                    userActivity.surveyVAK = rs.getInt(SURVEYVAKCHECK)
+                }
+                stmt.close()
+                conn.close()
+            }
+        } catch (e: SQLException) {
+            e.printStackTrace()
+        }
+        return userActivity
+    }
+
+    fun insertChatIdToChatTable(slackDetails: SlackDetails){
+        try {
+            val conn = getConnection()
+
+            conn.createStatement(ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_UPDATABLE).use { stmt ->
+
+                val query = "INSERT INTO slackChat (slackChatId,slackSiteId) " + "VALUES (?,?)"
+                val preparedStatement = conn.prepareStatement(query)
+                preparedStatement.setString(1, slackDetails.channelID)
+                preparedStatement.setString(2,slackDetails.teamID)
+
+                preparedStatement.executeUpdate()
+                preparedStatement.close()
+                stmt.close()
+            }
+            conn.close()
+        } catch (e: SQLException) {
+            e.printStackTrace()
+        }
+    }
+
+    fun isChannelIDInTable(channelID : String) : Boolean{
+
+        var count : Boolean = false
+        try {
+            val conn = getConnection()
+            conn.createStatement(ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_UPDATABLE).use { stmt ->
+                val query = "SELECT count(1) FROM `slackChat` WHERE slackChatId = \"$channelID\";"
+                val rs = stmt.executeQuery(query)
+                rs.next()
+                count = rs.getString(1).toBoolean()
+                rs.close()
+                conn.close()
+            }
+        } catch (e: SQLException) {
+            e.printStackTrace()
+        }
+        return count
     }
 
     fun selectAllSlackUsersFromDatabase(): ArrayList<String> {
@@ -238,7 +327,7 @@ class DatabaseManager(var keys: Keys) {
         return slackMessages
     }
 
-    fun findUserID(email: String, slackID: String, slackNickName: String) {
+    fun insertUserToSlackUserTable(email: String, slackID: String, slackNickName: String) {
         var userID: String? = null
         try {
             val conn = getConnection()
@@ -265,6 +354,76 @@ class DatabaseManager(var keys: Keys) {
 
     }
 
+    fun readWelcomeMessage(slackChannel: String): String{
+
+        var welcomeMessage : String = ""
+
+        try {
+            val conn = getConnection()
+            conn.createStatement(ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_UPDATABLE).use { stmt ->
+                val query = "SELECT `welcomeMessage` FROM `slackChat` where slackChatId = \"$slackChannel \""
+                val rs = stmt.executeQuery(query)
+                if(rs.next()){
+                    welcomeMessage = rs.getString("welcomeMessage")
+                }
+                stmt.close()
+                conn.close()
+            }
+
+
+        } catch (e: SQLException) {
+            e.printStackTrace()
+        }
+        return welcomeMessage
+    }
+
+    fun setupActivityTracker(slackUser : SlackUser){
+        try {
+            val conn = getConnection()
+
+            conn.createStatement(ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_UPDATABLE).use { stmt ->
+
+                val query = "INSERT INTO $ACTIVITYTRACKER ($SLACKUSERID,$WELCOMEDM,$LASTANSWEREDQUESTION) VALUES (?,?,?)"
+                val preparedStatement = conn.prepareStatement(query)
+                preparedStatement.setString(1, slackUser.id)
+                preparedStatement.setInt(2,1)
+                preparedStatement.setInt(3,0)
+
+                preparedStatement.executeUpdate()
+                preparedStatement.close()
+                stmt.close()
+            }
+            conn.close()
+        } catch (e: SQLException) {
+            e.printStackTrace()
+        }
+    }
+
+    fun updateActivityTracker(columnToUpdate : Int,userID : String){
+        var columnName : String = ""
+        when(columnToUpdate){
+            1-> columnName="timezoneSetUp"
+            2-> columnName="surveyDummy"
+            3-> columnName="surveyMBTI"
+            4-> columnName="surveyPAEI"
+            5-> columnName="survyeVAK"
+        }
+
+        val conn = getConnection()
+        try {
+            val ps = conn.prepareStatement(
+                    "UPDATE $ACTIVITYTRACKER SET $columnName=1 WHERE $SLACKUSERID = ?;")
+            ps.setString(1,userID)
+            ps.executeUpdate()
+            ps.close()
+
+
+        } catch (e: SQLException) {
+            e.printStackTrace()
+        }
+    }
+
+
     fun getUserGroup(): ArrayList<SlackDetails> {
         val slackMessageArrayList = ArrayList<SlackDetails>()
         try {
@@ -272,20 +431,20 @@ class DatabaseManager(var keys: Keys) {
             conn.createStatement(ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_UPDATABLE).use { stmt ->
                 val query = "SELECT " +
                         "su.slackUserId," +
-                        "sc.slackChannelId," +
+                        "sc.slackChatId," +
                         "g.name as 'group name'," +
                         "p.projectId FROM `user` AS u " +
                         "INNER JOIN `slackUser` AS su On `su`.`userId` = `u`.`userId`" +
                         "INNER JOIN `userGroup` AS ug ON `ug`.`userId` = `u`.`userId`" +
                         "INNER JOIN `group` AS g ON `g`.`groupId` = `ug`.`groupId`" +
-                        "INNER JOIN `slackChannel` AS sc ON `sc`.`groupId` = `g`.`groupId`" +
+                        "INNER JOIN `slackChat` AS sc ON `sc`.`groupId` = `g`.`groupId`" +
                         "INNER JOIN `project` AS p ON `p`.`projectId` = `g`.`projectId`" +
-                        "WHERE p.projectId = " + "\"bestFood2016\""
+                        "WHERE p.projectId = '${keys.projectName}'"
                 val rs = stmt.executeQuery(query)
                 while (rs.next()) {
                     val slackMessage = SlackDetails()
                     slackMessage.userID = rs.getString("slackUserId")
-                    slackMessage.channelID = rs.getString("slackChannelId")
+                    slackMessage.channelID = rs.getString("slackChatId")
                     slackMessageArrayList.add(slackMessage)
                 }
                 rs.close()
@@ -412,7 +571,7 @@ class DatabaseManager(var keys: Keys) {
             val conn = getConnection()
             conn.createStatement(ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_UPDATABLE).use { stmt ->
                 val query = "INSERT INTO userTyping (" +
-                        "slackChannelId," +
+                        "slackChatId," +
                         "writerSlackUserId," +
                         "userLocalTime," +
                         "userTimezoneOffset," +
@@ -442,14 +601,14 @@ class DatabaseManager(var keys: Keys) {
         var dbMessageID: String? = null
         try {
             conn.createStatement(ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_UPDATABLE).use { stmt ->
-                var query = "  SELECT `channelMessagesId` FROM `channelMessages`WHERE slackMessageId =\"${message.slackMessageID}\";"
+                var query = "  SELECT `chatMessageId` FROM `chatMessage`WHERE slackMessageId =\"${message.slackMessageID}\";"
                 val rs = stmt.executeQuery(query)
                 if (rs.next()) {
-                    dbMessageID = rs.getString("channelMessagesId")
+                    dbMessageID = rs.getString("chatMessageId")
                 }
                 rs.close()
                 stmt.close()
-                query = "INSERT INTO messageReactions (channelMessageId," +
+                query = "INSERT INTO messageReaction (channelMessageId," +
                         "userReactingId," +
                         "emojiName," +
                         "userLocalTime," +
@@ -475,7 +634,7 @@ class DatabaseManager(var keys: Keys) {
         val conn = getConnection()
         try {
             conn.createStatement(ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_UPDATABLE).use { stmt ->
-                val query = "  SELECT * FROM `channelMessages`WHERE slackMessageId =\"${message.slackMessageID}\";"
+                val query = "  SELECT * FROM `chatMessage`WHERE slackMessageId =\"${message.slackMessageID}\";"
                 val rs = stmt.executeQuery(query)
                 if (rs.next()) {
                     message.userID=rs.getString("writerSlackUserId")
@@ -500,7 +659,7 @@ class DatabaseManager(var keys: Keys) {
         try {
             val conn = getConnection()
             conn.createStatement(ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_UPDATABLE).use { stmt ->
-                val query = "SELECT * FROM `channelMessages` WHERE slackMessageId = \"${message.slackMessageID}\";"
+                val query = "SELECT * FROM `chatMessage` WHERE slackMessageId = \"${message.slackMessageID}\";"
                 val rs = stmt.executeQuery(query)
                 rs.next()
                 if(rs.getTimestamp("deletedLocaltime")==null){
@@ -521,8 +680,8 @@ class DatabaseManager(var keys: Keys) {
             try {
 
                 val ps = conn.prepareStatement(
-                        "UPDATE channelMessages " +
-                                "AS t1 INNER JOIN (SELECT userTimezoneOffset FROM channelMessages WHERE slackMessageId = ? LIMIT 1)" +
+                        "UPDATE chatMessage " +
+                                "AS t1 INNER JOIN (SELECT userTimezoneOffset FROM chatMessage WHERE slackMessageId = ? LIMIT 1)" +
                                 "AS t2 SET t1.deletedLocaltime = DATE_ADD(UTC_TIMESTAMP(), INTERVAL (3600 * t2.userTimezoneOffset) SECOND)" +
                                 " WHERE slackMessageId = ?;")
                 ps.setString(1,message.slackMessageID)
@@ -559,5 +718,119 @@ class DatabaseManager(var keys: Keys) {
             e.printStackTrace()
         }
     }
+
+    fun getSurveyQuestion(surveyName : String, userID : String) : SurveyQuestions {
+        val surveyQuestions : SurveyQuestions = SurveyQuestions()
+        var lastAnswered : Int =0
+        var questionText: String = ""
+        var questionID : Int =0
+        val optionArrayList : ArrayList<String> = ArrayList()
+
+        try {
+            val conn = getConnection()
+
+            conn.createStatement(ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_UPDATABLE).use { stmt ->
+                val query = "SELECT $LASTANSWEREDQUESTION FROM $ACTIVITYTRACKER WHERE $SLACKUSERID = \"$userID\""
+                val rs = stmt.executeQuery(query)
+                while (rs.next()) {
+                    lastAnswered = rs.getInt(LASTANSWEREDQUESTION)+1
+                }
+
+                val query1 = "SELECT $QUESTIONTEXT,$SURVEYQUESTIONID FROM $SURVEYQUESTION WHERE " +
+                        "$QUESTIONORDER = \"$lastAnswered\" AND " +
+                        "$SURVEYNAME = \"$surveyName\""
+                val rs1 = stmt.executeQuery(query1)
+                while (rs1.next()) {
+                    questionText = rs1.getString(QUESTIONTEXT)
+                    questionID = rs1.getInt(SURVEYQUESTIONID)
+                }
+
+                val query2 = "SELECT $OPTIONTEXT,$OPTIONORDER FROM $SURVEYOPTION WHERE " +
+                        "$SURVEYQUESTIONID = \"$questionID\" ORDER BY $OPTIONORDER ASC"
+                val rs2 = stmt.executeQuery(query2)
+                while (rs2.next()) {
+                    val text = rs2.getString(OPTIONTEXT)
+                    optionArrayList.add(text)
+                }
+
+                stmt.close()
+                conn.close()
+            }
+
+
+        } catch (e: SQLException) {
+            e.printStackTrace()
+        }
+        surveyQuestions.questionText=questionText
+        surveyQuestions.questionAnswers=optionArrayList
+        return surveyQuestions
+    }
+
+    private fun selectCurrentUserQuestion(userID: String) : Int{
+        var lastAnswered : Int = 0
+        try {
+            val conn = getConnection()
+
+            conn.createStatement(ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_UPDATABLE).use { stmt ->
+                val query = "SELECT $LASTANSWEREDQUESTION, FROM $ACTIVITYTRACKER WHERE $SLACKUSERID = \"$userID\""
+                val rs = stmt.executeQuery(query)
+                while (rs.next()) {
+                    lastAnswered = rs.getInt(LASTANSWEREDQUESTION)+1
+                }
+                stmt.close()
+                conn.close()
+            }
+
+
+        } catch (e: SQLException) {
+            e.printStackTrace()
+        }
+        return lastAnswered+1
+    }
+
+    private fun getSurveyQuestionID(surveyName: String,questionNumber : Int) : Int{
+
+        var surveyQuestionID : Int = 0
+        try {
+            val conn = getConnection()
+
+            conn.createStatement(ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_UPDATABLE).use { stmt ->
+                val query = "SELECT $SURVEYQUESTIONID, FROM $SURVEYQUESTION WHERE $SURVEYNAME = \"$surveyName\" AND $QUESTIONORDER = \"$questionNumber\" "
+                val rs = stmt.executeQuery(query)
+                while (rs.next()) {
+                    surveyQuestionID = rs.getInt(LASTANSWEREDQUESTION)+1
+                }
+                stmt.close()
+                conn.close()
+            }
+        } catch (e: SQLException) {
+            e.printStackTrace()
+        }
+        return surveyQuestionID
+    }
+
+    fun totalNumberOfOptions(surveyName: String,userID: String):ArrayList<Int>{
+
+        val currentQuestion = selectCurrentUserQuestion(userID)
+        val currentSurvey = getSurveyQuestionID(surveyName,currentQuestion)
+        val intArrayList : ArrayList<Int> = ArrayList()
+        try {
+            val conn = getConnection()
+            conn.createStatement(ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_UPDATABLE).use { stmt ->
+                val query = "SELECT count(1) FROM `surveyOption` WHERE $SURVEYQUESTIONID = \"$currentSurvey\";"
+                val rs = stmt.executeQuery(query)
+                rs.last()
+                intArrayList.add(rs.getString(1).toInt())
+
+                rs.close()
+                conn.close()
+            }
+        } catch (e: SQLException) {
+            e.printStackTrace()
+        }
+        intArrayList.add(currentQuestion)
+        return intArrayList
+    }
+
 
 }

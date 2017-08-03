@@ -1,14 +1,17 @@
+package objects
+
 /**
  * Created by Mateusz on 22/05/2017.
  */
 
+import com.ullink.slack.simpleslackapi.SlackUser
 import java.sql.Timestamp
 import java.util.ArrayList
 
 /**
  * Created by Mateusz on 05/10/2016.
  */
-class SlackDetails{
+open class SlackDetails{
 
     var userName: String = ""
     var message: String = ""
@@ -27,4 +30,6 @@ class SlackDetails{
     var slackMessageID : String = ""
     var userTimezoneOffsetMilisec : Int = 0
     var threadID : String? = ""
+    var teamID : String = ""
+    lateinit var slackUser: SlackUser
 }

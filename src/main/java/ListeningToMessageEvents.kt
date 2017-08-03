@@ -1,5 +1,7 @@
 import com.ullink.slack.simpleslackapi.*
 import com.ullink.slack.simpleslackapi.listeners.*
+import objects.SlackDetails
+import objects.SurveyQuestions
 
 import java.util.ArrayList
 import java.util.regex.Pattern
@@ -25,48 +27,58 @@ class ListeningToMessageEvents(var keys: Keys) {
     fun registeringAListener(session: SlackSession) {
 
         val messagePostedListener = SlackMessagePostedListener { event, _ ->
-            event.channel.isDirect
+
             if (!event.sender.isBot) {
                 val slackMessage = SlackDetails()
-                slackMessage.channelID = event.channel.id
-                slackMessage.message = event.messageContent
-                slackMessage.userID = event.sender.id
-                slackMessage.slackMessageID = event.timestamp
-                slackMessage.userTimezoneLabel = event.sender.timeZoneLabel
-                slackMessage.userTimezoneOffset = convertTimeOff(event.sender.timeZoneOffset)
-                slackMessage.userTimezoneOffsetMilisec = event.sender.timeZoneOffset
-                slackMessage.threadID = event.threadTimestamp
+                if(!event.channel.isDirect){
+                    slackMessage.channelID = event.channel.id
+                    slackMessage.message = event.messageContent
+                    slackMessage.userID = event.sender.id
+                    slackMessage.slackMessageID = event.timestamp
+                    slackMessage.userTimezoneLabel = event.sender.timeZoneLabel
+                    slackMessage.userTimezoneOffset = convertTimeOff(event.sender.timeZoneOffset)
+                    slackMessage.userTimezoneOffsetMilisec = event.sender.timeZoneOffset
+                    slackMessage.threadID = event.threadTimestamp
 
-
-
-                if (slackMessage.message.contains("Hey Scanner", true)) {
-                    val respondToUser = RespondToUser()
-                    respondToUser.respondToUser(session, slackMessage.channelID)
+                    channelMessageReceived(slackMessage)
+                }else{
+                    slackMessage.userID=event.sender.id
+                    slackMessage.channelID = event.channel.id
+                    slackMessage.message = event.messageContent
+                    slackMessage.teamID=session.team.id
+                    slackMessage.slackUser=event.sender
+                    val userIneraction : UserInteraction = UserInteraction()
+                    userIneraction.directMessageReceived(slackMessage,keys,session)
                 }
-
-                // detect both patterns: <@U12345678> and <@U12345678|username>
-                val mentionsPattern = Pattern.compile("<@([^<>\\|]{9})(\\|)?([^>]*)>")
-                val mentionsMatcher = mentionsPattern.matcher(slackMessage.message)
-                // these lists are used to replace mentions
-
-
-                val startIndexes = ArrayList<Int>()
-                val endIndexes = ArrayList<Int>()
-                val replaces = ArrayList<String>()
-                while (mentionsMatcher.find()) {
-                    startIndexes.add(mentionsMatcher.start())
-                    endIndexes.add(mentionsMatcher.end())
-                    val slackUsername = mentionsMatcher.group(1)
-                    replaces.add(slackUsername)
-                }
-                slackMessage.replaces = replaces
-
-                val databaseManager = DatabaseManager(keys)
-                databaseManager.saveMessageInDatabase(slackMessage)
             }
         }
         session.addMessagePostedListener(messagePostedListener)
     }
+
+
+    fun channelMessageReceived(slackMessage : SlackDetails){
+
+        // detect both patterns: <@U12345678> and <@U12345678|username>
+        val mentionsPattern = Pattern.compile("<@([^<>\\|]{9})(\\|)?([^>]*)>")
+        val mentionsMatcher = mentionsPattern.matcher(slackMessage.message)
+        // these lists are used to replace mentions
+
+
+        val startIndexes = ArrayList<Int>()
+        val endIndexes = ArrayList<Int>()
+        val replaces = ArrayList<String>()
+        while (mentionsMatcher.find()) {
+            startIndexes.add(mentionsMatcher.start())
+            endIndexes.add(mentionsMatcher.end())
+            val slackUsername = mentionsMatcher.group(1)
+            replaces.add(slackUsername)
+        }
+        slackMessage.replaces = replaces
+
+        val databaseManager = DatabaseManager(keys)
+        databaseManager.saveMessageInDatabase(slackMessage)
+    }
+
 
     fun messageEdited(session: SlackSession) {
         val slackMessage = SlackDetails()
@@ -121,24 +133,35 @@ class ListeningToMessageEvents(var keys: Keys) {
         val databaseManager = DatabaseManager(keys)
 
 
-        val slackUserChangeListener = PresenceChangeListener { presenceChange, _ ->
+        val slackUserChangeListener = PresenceChangeListener { event, _ ->
             val databaseSlackUsers = databaseManager.selectAllSlackUsersFromDatabase()
             session.refetchUsers()
-            val slackUser = session.findUserById(presenceChange.userId)
+            val slackUser = session.findUserById(event.userId)
             if (!slackUser.isBot) {
                 val slackMessage = SlackDetails()
                 slackMessage.userID = slackUser.id
                 slackMessage.userTimezoneOffset = convertTimeOff(slackUser.timeZoneOffset)
                 slackMessage.userTimezoneOffsetMilisec = slackUser.timeZoneOffset
                 slackMessage.userTimezoneLabel = slackUser.timeZoneLabel
+
+                val userInteraction : UserInteraction = UserInteraction()
+
                 if (!databaseSlackUsers.contains(slackMessage.userID)) {
                     val userEmail = slackUser.userMail
                     val userNickName = slackUser.userName
-                    databaseManager.findUserID(userEmail, slackMessage.userID, userNickName)
+                    databaseManager.insertUserToSlackUserTable(userEmail, slackMessage.userID, userNickName)
                     databaseSlackUsers.add(slackMessage.userID)
+
+
+                    userInteraction.sendDirectWelcomeMessage(session,slackUser,databaseManager)
+                }
+                if(event.presence.name=="ACTIVE"){
+                    Thread({
+                        userInteraction.checkUserActivityTracker(slackMessage,keys,session)
+                    }).start()
                 }
                 slackMessage.email = slackUser.userMail
-                slackMessage.status = presenceChange.presence.toString()
+                slackMessage.status = event.presence.toString()
                 databaseManager.saveStatusInDatabase(slackMessage)
             }
         }

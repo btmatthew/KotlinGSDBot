@@ -14,14 +14,14 @@ fun main(args: Array<String>) {
     //Generates a key
     var keys = Keys()
 
-    keys.portNumber = 0//Integer.parseInt(args[0])
+    keys.portNumber = 7000//Integer.parseInt(args[0])
     val databaseManager = DatabaseManager(keys)
     keys = databaseManager.getBotDetails()
 
     //Starts a session
 
     //val session = SlackSessionFactory.createWebSocketSlackSession(keys.slackKey)
-    val session = SlackSessionFactory.createWebSocketSlackSession("")
+    val session = SlackSessionFactory.createWebSocketSlackSession("xoxb-138762866022-lRCv1JVTPQFE2rWdPrqBTREl")
     session.connect()
 
     //Checks if the team exists in a database
@@ -33,15 +33,17 @@ fun main(args: Array<String>) {
     if (!isTeamInDatabase) {
         databaseManager.addTeamToDatabase(slackTeam)
     }
+
+
     //init all the listeners
-    val slackMessage = ListeningToMessageEvents(keys)
-    slackMessage.registeringAListener(session)
-    slackMessage.registeringLoginListener(session)
-    slackMessage.registeringChannelCreatedListener(session)
-    slackMessage.userTyping(session)
-    slackMessage.reaction(session)
-    slackMessage.messageEdited(session)
-    slackMessage.messageDeleted(session)
+    val slackListeners = ListeningToMessageEvents(keys)
+    slackListeners.registeringAListener(session)
+    slackListeners.registeringLoginListener(session)
+    slackListeners.registeringChannelCreatedListener(session)
+    slackListeners.userTyping(session)
+    slackListeners.reaction(session)
+    slackListeners.messageEdited(session)
+    slackListeners.messageDeleted(session)
 
     //creates heart beat
     val timer = Timer()
