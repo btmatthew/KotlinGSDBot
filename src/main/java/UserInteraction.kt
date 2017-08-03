@@ -107,7 +107,7 @@ class UserInteraction {
      *  @param session user for purpose of interacting with Slack
      *
      */
-    fun calculateSurveyScoreForUser(session: SlackSession,user: SlackUser){
+    fun calculateSurveyScoreForUser(session: SlackSession,user: SlackUser,surveyName : String){
 
     }
 
