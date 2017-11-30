@@ -1,9 +1,9 @@
 {
-  "slackKey": "",
-  "slackAdminKey": "",
-  "databaseURL": "",
-  "databaseUser": "",
-  "databasePass":"",
-  "projectName":"",
-  "portNumber":0
+  "slackKey": "xoxb-138762866022-lRCv1JVTPQFE2rWdPrqBTREl",
+  "slackAdminKey": "xoxp-138168593621-138168593781-138178697429-1f2c024dacec0ca3447e30c20ae04867",
+  "databaseURL": "jdbc:mysql://localhost:3306/gsdSystem?useSSL=false",
+  "databaseUser": "server",
+  "databasePass":"serverpass",
+  "projectName":"Science",
+  "portNumber":7000
 }

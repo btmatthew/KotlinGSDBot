@@ -1,5 +1,4 @@
 import com.sun.net.httpserver.HttpServer
-import com.ullink.slack.simpleslackapi.SlackSessionWrapper
 import com.ullink.slack.simpleslackapi.SlackTeam
 import com.ullink.slack.simpleslackapi.impl.SlackSessionFactory
 import java.net.InetSocketAddress
@@ -18,11 +17,15 @@ fun main(args: Array<String>) {
     val databaseManager = DatabaseManager(keys)
     keys = databaseManager.getBotDetails()
 
+
+
+
     //Starts a session
 
-    //val session = SlackSessionFactory.createWebSocketSlackSession(keys.slackKey)
-    val session = SlackSessionFactory.createWebSocketSlackSession("xoxb-138762866022-lRCv1JVTPQFE2rWdPrqBTREl")
+    val session = SlackSessionFactory.createWebSocketSlackSession(keys.slackKey)
+    //val session = SlackSessionFactory.createWebSocketSlackSession("xoxb-138762866022-lRCv1JVTPQFE2rWdPrqBTREl")
     session.connect()
+
 
     //Checks if the team exists in a database
 
@@ -36,14 +39,14 @@ fun main(args: Array<String>) {
 
 
     //init all the listeners
-    val slackListeners = ListeningToMessageEvents(keys)
-    slackListeners.registeringAListener(session)
-    slackListeners.registeringLoginListener(session)
-    slackListeners.registeringChannelCreatedListener(session)
-    slackListeners.userTyping(session)
-    slackListeners.reaction(session)
-    slackListeners.messageEdited(session)
-    slackListeners.messageDeleted(session)
+    val slackListeners = ListeningToMessageEvents(session,databaseManager)
+    slackListeners.registeringAListener()
+    slackListeners.registeringLoginListener()
+    slackListeners.registeringChannelCreatedListener()
+    slackListeners.userTyping()
+    slackListeners.reaction()
+    slackListeners.messageEdited()
+    slackListeners.messageDeleted()
 
     //creates heart beat
     val timer = Timer()
@@ -54,10 +57,10 @@ fun main(args: Array<String>) {
     }, 0, 6 * 10000)
 
     //Creates http links for interactions
-//    val server = HttpServer.create(InetSocketAddress(keys.portNumber), 0)
-//    server.createContext("/addusers", HTTPServer(keys, session,server,timer))
-//    server.executor = null
-//    server.start()
+    val server = HttpServer.create(InetSocketAddress(keys.portNumber), 0)
+    server.createContext("/addusers", HTTPServer(keys, session,server,timer))
+    server.executor = null
+    server.start()
 
 
 }

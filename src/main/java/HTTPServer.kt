@@ -76,6 +76,7 @@ class HTTPServer(var keys:Keys,var sessionNonAdmin: SlackSession,var server: Htt
                 println("Following user was invited : ${slackMessage.firstName} with email address ${slackMessage.email}")
             }
         }
+        println("testing")
         session.disconnect()
     }
 
@@ -113,6 +114,7 @@ class HTTPServer(var keys:Keys,var sessionNonAdmin: SlackSession,var server: Htt
     }
 
     private fun shutdown(db: DatabaseManager) {
+        println( "shutdown!")
         sessionNonAdmin.disconnect()
         timer.cancel()
         db.hearthBeat(keys.projectName,false)

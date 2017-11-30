@@ -6,4 +6,6 @@ class SurveyQuestions {
     var questionOrder : Int = 0
     var questionText : String = ""
     var questionAnswers : ArrayList<String> = ArrayList()
+    var questionNumber : Int = 0
+
 }

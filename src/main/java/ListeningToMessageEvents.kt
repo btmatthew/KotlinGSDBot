@@ -1,7 +1,13 @@
-import com.ullink.slack.simpleslackapi.*
-import com.ullink.slack.simpleslackapi.listeners.*
+import com.ullink.slack.simpleslackapi.SlackSession
+import com.ullink.slack.simpleslackapi.listeners.PresenceChangeListener
+import com.ullink.slack.simpleslackapi.listeners.ReactionAddedListener
+import com.ullink.slack.simpleslackapi.listeners.SlackChannelJoinedListener
+import com.ullink.slack.simpleslackapi.listeners.SlackMessageDeletedListener
+import com.ullink.slack.simpleslackapi.listeners.SlackMessagePostedListener
+import com.ullink.slack.simpleslackapi.listeners.SlackMessageUpdatedListener
+import com.ullink.slack.simpleslackapi.listeners.UserTypingListener
+
 import objects.SlackDetails
-import objects.SurveyQuestions
 
 import java.util.ArrayList
 import java.util.regex.Pattern
@@ -9,7 +15,7 @@ import java.util.regex.Pattern
 /**
  * Created by Mateusz on 23/05/2017.
  */
-class ListeningToMessageEvents(var keys: Keys) {
+class ListeningToMessageEvents(private val session: SlackSession, private val databaseManager: DatabaseManager) {
 
     /**
      * This method shows how to register a listener on a SlackSession
@@ -22,15 +28,14 @@ class ListeningToMessageEvents(var keys: Keys) {
      * It also be used for purpose finding out who was mentioned in the message,
      * and making an array list out of it.
 
-     * @param session from Slack
+     *
      */
-    fun registeringAListener(session: SlackSession) {
-
+    fun registeringAListener() {
         val messagePostedListener = SlackMessagePostedListener { event, _ ->
-
             if (!event.sender.isBot) {
                 val slackMessage = SlackDetails()
-                if(!event.channel.isDirect){
+                if (!event.channel.isDirect) {
+
                     slackMessage.channelID = event.channel.id
                     slackMessage.message = event.messageContent
                     slackMessage.userID = event.sender.id
@@ -39,16 +44,15 @@ class ListeningToMessageEvents(var keys: Keys) {
                     slackMessage.userTimezoneOffset = convertTimeOff(event.sender.timeZoneOffset)
                     slackMessage.userTimezoneOffsetMilisec = event.sender.timeZoneOffset
                     slackMessage.threadID = event.threadTimestamp
-
                     channelMessageReceived(slackMessage)
-                }else{
-                    slackMessage.userID=event.sender.id
+                } else {
+                    slackMessage.userID = event.sender.id
                     slackMessage.channelID = event.channel.id
                     slackMessage.message = event.messageContent
-                    slackMessage.teamID=session.team.id
-                    slackMessage.slackUser=event.sender
-                    val userIneraction : UserInteraction = UserInteraction()
-                    userIneraction.directMessageReceived(slackMessage,keys,session)
+                    slackMessage.teamID = session.team.id
+                    slackMessage.slackUser = event.sender
+                    val userIneraction = UserInteraction(databaseManager)
+                    userIneraction.directMessageReceived(slackMessage, session)
                 }
             }
         }
@@ -56,8 +60,7 @@ class ListeningToMessageEvents(var keys: Keys) {
     }
 
 
-    fun channelMessageReceived(slackMessage : SlackDetails){
-
+    private fun channelMessageReceived(slackMessage: SlackDetails) {
         // detect both patterns: <@U12345678> and <@U12345678|username>
         val mentionsPattern = Pattern.compile("<@([^<>\\|]{9})(\\|)?([^>]*)>")
         val mentionsMatcher = mentionsPattern.matcher(slackMessage.message)
@@ -70,22 +73,22 @@ class ListeningToMessageEvents(var keys: Keys) {
         while (mentionsMatcher.find()) {
             startIndexes.add(mentionsMatcher.start())
             endIndexes.add(mentionsMatcher.end())
-            val slackUsername = mentionsMatcher.group(1)
-            replaces.add(slackUsername)
+            val slackUserId = mentionsMatcher.group(1)
+            replaces.add(slackUserId)
         }
         slackMessage.replaces = replaces
 
-        val databaseManager = DatabaseManager(keys)
+
         databaseManager.saveMessageInDatabase(slackMessage)
     }
 
 
-    fun messageEdited(session: SlackSession) {
+    fun messageEdited() {
         val slackMessage = SlackDetails()
         val messageEdited = SlackMessageUpdatedListener { event, _ ->
             slackMessage.message = event.newMessage
             slackMessage.slackMessageID = event.messageTimestamp
-            slackMessage.channelID=event.channel.id
+            slackMessage.channelID = event.channel.id
 
 
             // detect both patterns: <@U12345678> and <@U12345678|username>
@@ -104,17 +107,15 @@ class ListeningToMessageEvents(var keys: Keys) {
                 replaces.add(slackUsername)
             }
             slackMessage.replaces = replaces
-            val databaseManager = DatabaseManager(keys)
             databaseManager.messageEdited(slackMessage)
         }
         session.addMessageUpdatedListener(messageEdited)
     }
 
-    fun messageDeleted(session: SlackSession) {
+    fun messageDeleted() {
         val slackMessage = SlackDetails()
         val messageDeleted = SlackMessageDeletedListener { event, _ ->
-            slackMessage.slackMessageID=event.messageTimestamp
-            val databaseManager = DatabaseManager(keys)
+            slackMessage.slackMessageID = event.messageTimestamp
             databaseManager.messageDeleted(slackMessage)
         }
         session.addMessageDeletedListener(messageDeleted)
@@ -127,11 +128,9 @@ class ListeningToMessageEvents(var keys: Keys) {
      * if not the user will be added to that table by collecting his userID from user table,
      * using the email
 
-     * @param session from Slack
+     *
      */
-    fun registeringLoginListener(session: SlackSession) {
-        val databaseManager = DatabaseManager(keys)
-
+    fun registeringLoginListener() {
 
         val slackUserChangeListener = PresenceChangeListener { event, _ ->
             val databaseSlackUsers = databaseManager.selectAllSlackUsersFromDatabase()
@@ -143,21 +142,23 @@ class ListeningToMessageEvents(var keys: Keys) {
                 slackMessage.userTimezoneOffset = convertTimeOff(slackUser.timeZoneOffset)
                 slackMessage.userTimezoneOffsetMilisec = slackUser.timeZoneOffset
                 slackMessage.userTimezoneLabel = slackUser.timeZoneLabel
+                slackMessage.slackUser = slackUser
 
-                val userInteraction : UserInteraction = UserInteraction()
-
+                val userInteraction = UserInteraction(databaseManager)
+                var firstLogin = false
                 if (!databaseSlackUsers.contains(slackMessage.userID)) {
                     val userEmail = slackUser.userMail
                     val userNickName = slackUser.userName
                     databaseManager.insertUserToSlackUserTable(userEmail, slackMessage.userID, userNickName)
                     databaseSlackUsers.add(slackMessage.userID)
-
-
-                    userInteraction.sendDirectWelcomeMessage(session,slackUser,databaseManager)
+                    firstLogin=true
+                    userInteraction.sendWelcomeMessage(session,slackUser)
+                    println("${slackMessage.userID} first Login")
                 }
-                if(event.presence.name=="ACTIVE"){
+                if (event.presence.name == "ACTIVE" && !firstLogin) {
                     Thread({
-                        userInteraction.checkUserActivityTracker(slackMessage,keys,session)
+                        println("${slackMessage.userID} status changed to active")
+                        userInteraction.checkUserActivityTracker(slackMessage, session)
                     }).start()
                 }
                 slackMessage.email = slackUser.userMail
@@ -172,9 +173,9 @@ class ListeningToMessageEvents(var keys: Keys) {
      * Used for purpose registering a listener which will be called when
      * bot is added to a channel that it hasn't seen before.
 
-     * @param session from Slack
+     *
      */
-    fun registeringChannelCreatedListener(session: SlackSession) {
+    fun registeringChannelCreatedListener() {
 
 
         val slackChannelJoinedListener = SlackChannelJoinedListener { slackChannelJoined, slackSession ->
@@ -183,30 +184,31 @@ class ListeningToMessageEvents(var keys: Keys) {
             slackMessage.channelID = slackChannelJoined.slackChannel.id
             slackMessage.channelName = slackChannelJoined.slackChannel.name
 
-            DatabaseManager(keys).newChannelCreated(slackMessage)
+            databaseManager.newChannelCreated(slackMessage)
 
         }
         session.addChannelJoinedListener(slackChannelJoinedListener)
     }
 
-
-    fun userTyping(session: SlackSession) {
+    /***
+     * Used for purposen
+     */
+    fun userTyping() {
 
         val slackUserTyping = UserTypingListener { userTyping, _ ->
             val slackMessage = SlackDetails()
             slackMessage.userID = userTyping.user.id
             slackMessage.channelID = userTyping.channel.id
+            slackMessage.teamID = session.team.id
             slackMessage.userTimezoneOffsetMilisec = userTyping.user.timeZoneOffset
             slackMessage.userTimezoneOffset = convertTimeOff(userTyping.user.timeZoneOffset)
             slackMessage.userTimezoneLabel = userTyping.user.timeZoneLabel
-
-            DatabaseManager(keys).userTypingEvent(slackMessage)
-
+            databaseManager.userTypingEvent(slackMessage)
         }
         session.addUserTypingListener(slackUserTyping)
     }
 
-    fun reaction(session: SlackSession) {
+    fun reaction() {
         val reaction = ReactionAddedListener { reactionMessage, _ ->
             val slackMessage = SlackDetails()
             slackMessage.userID = reactionMessage.user.id
@@ -216,7 +218,7 @@ class ListeningToMessageEvents(var keys: Keys) {
             slackMessage.userTimezoneOffset = convertTimeOff(reactionMessage.user.timeZoneOffset)
             slackMessage.slackMessageID = reactionMessage.messageID
 
-            DatabaseManager(keys).messageReaction(slackMessage)
+            databaseManager.messageReaction(slackMessage)
         }
         session.addReactionAddedListener(reaction)
     }
