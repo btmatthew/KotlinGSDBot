@@ -217,7 +217,7 @@ class ListeningToMessageEvents(private val session: SlackSession, private val da
             slackMessage.userTimezoneLabel = reactionMessage.user.timeZoneLabel
             slackMessage.userTimezoneOffset = convertTimeOff(reactionMessage.user.timeZoneOffset)
             slackMessage.slackMessageID = reactionMessage.messageID
-
+            println(slackMessage)
             databaseManager.messageReaction(slackMessage)
         }
         session.addReactionAddedListener(reaction)
