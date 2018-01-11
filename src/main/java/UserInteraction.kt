@@ -329,14 +329,63 @@ class UserInteraction(private val databaseManager: DatabaseManager) {
             "vark" -> {
                 answers = databaseManager.selectAllTheAnswersBasedOnUserID(surveyName, slackDetails.userID)
                 result = databaseManager.getAllVarkAnswers(answers)
-                slackMessage.title = "Results"
-                slackMessage.text = "V(${result["v"]}), A(${result["a"]}), R(${result["r"]}), K(${result["k"]})"
 
-                val preparedMessage = SlackPreparedMessage.Builder()
+                slackMessage.title = "Visual (Vark) (${result["v"]})"
+                slackMessage.text = "Someone with a Visual learning style has a preference for seen or observed things, including pictures, diagrams, demonstrations, displays, handouts, films, flip-chart, etc. \n" +
+                        "These people will use phrases such as ‘show me’, ‘let’s have a look at that’ and will be best able to perform a new task after reading the instructions or watching someone else do it first." +
+                        " These are the people who will work from lists and written directions and instructions."
+
+                var preparedMessage = SlackPreparedMessage.Builder()
                         .addAttachment(slackMessage)
                         .withUnfurl(false)
                         .build()
                 session.sendMessageToUser(slackDetails.slackUser, preparedMessage)
+
+                slackMessage.title = "Aural (vArk) (${result["a"]})"
+                slackMessage.text = "Someone with an Aural learning style has a preference for the transfer of information through listening: to the spoken word, of self or others, of sounds and noises.\n" +
+                        "These people will use phrases such as ‘tell me’, ‘let’s talk it over’ and will be best able to perform a new task after listening to instructions from an expert.\n" +
+                        "These are the people who are happy being given spoken instructions over the telephone, and can remember all the words to songs that they hear!"
+
+                preparedMessage = SlackPreparedMessage.Builder()
+                        .addAttachment(slackMessage)
+                        .withUnfurl(false)
+                        .build()
+                session.sendMessageToUser(slackDetails.slackUser, preparedMessage)
+
+                slackMessage.title = "Read/write (vaRk) (${result["r"]})"
+                slackMessage.text = "This preference is for information displayed as words. Not surprisingly, many teachers and students have a strong preference for this mode.\n" +
+                        " Being able to write well and read widely are attributes sought by employers of graduates.\n" +
+                        " This preference emphasizes text-based input and output – reading and writing in all its forms but especially manuals, reports, essays and assignments.\n" +
+                        " People who prefer this modality are often addicted to PowerPoint, the Internet, lists, diaries, dictionaries, thesauri, quotations and words, words, words…\n" +
+                        " Note that most PowerPoint presentations and the Internet, GOOGLE and Wikipedia are essentially suited to those with this preference as there is seldom an auditory channel or a presentation that uses Visual symbols."
+                preparedMessage = SlackPreparedMessage.Builder()
+                        .addAttachment(slackMessage)
+                        .withUnfurl(false)
+                        .build()
+                session.sendMessageToUser(slackDetails.slackUser, preparedMessage)
+
+                slackMessage.title = "Kinaesthetic (varK) (${result["k"]})"
+                slackMessage.text = "Someone with a Kinaesthetic learning style has a preference for physical experience - touching, feeling, holding, doing, practical hands-on experiences. \n" +
+                        "These people will use phrases such as ‘let me try’, ‘how do you feel?’ and will be best able to perform a new task by going ahead and trying it out, learning as they go.\n" +
+                        " These are the people who like to experiment, hands-on, and never look at the instructions first!\n" +
+                        "People commonly have a main preferred learning style, but this will be part of a blend of all four.\n" +
+                        " Some people have a very strong preference; other people have a more even mixture of two or less commonly, three styles.\n" +
+                        "When you know your preferred learning style(s) you understand the type of learning that best suits you.\n" +
+                        " This enables you to choose the types of learning that work best for you. There is no right or wrong learning style.\n" +
+                        " The point is that there are types of learning that are right for your own preferred learning style."
+                preparedMessage = SlackPreparedMessage.Builder()
+                        .addAttachment(slackMessage)
+                        .withUnfurl(false)
+                        .build()
+                session.sendMessageToUser(slackDetails.slackUser, preparedMessage)
+//                session.sendMessageToUser(slackDetails.slackUser, preparedMessage)
+//
+//
+//                slackMessage.title = "Results"
+//                slackMessage.text = "V(${result["v"]}), A(${result["a"]}), R(${result["r"]}), K(${result["k"]})"
+
+
+
             }
         }
         databaseManager.setTally(slackDetails.userID, surveyName, result)
