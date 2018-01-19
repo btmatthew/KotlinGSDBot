@@ -1026,8 +1026,8 @@ class DatabaseManager(private var keys: Keys) {
 
 
                 when (surveyName) {
-                    "MBTI" -> query = "INSERT INTO $MBTI ($USERID) VALUES (?)"
-                    "PAEI" -> query = "INSERT INTO $PAEI ($USERID) VALUES (?)"
+                    "mbti" -> query = "INSERT INTO $MBTI ($USERID) VALUES (?)"
+                    "paei" -> query = "INSERT INTO $PAEI ($USERID) VALUES (?)"
                     "vark" -> query = "INSERT INTO $VARK ($USERID) VALUES (?)"
                 }
                 val userID = selectUserIDBasedOnSlackID(slackUser.id)

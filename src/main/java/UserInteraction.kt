@@ -7,7 +7,6 @@ import surveyCalculators.PAEI
 import surveyCalculators.VARK
 import java.util.ArrayList
 import kotlin.collections.HashMap
-import java.util.HashSet
 
 
 
@@ -618,7 +617,7 @@ class UserInteraction(private val databaseManager: DatabaseManager) {
                 .addAttachment(slackMessage)
                 .withUnfurl(false)
                 .build()
-        databaseManager.createSurveyRow(user.slackUser, "MBTI")
+        databaseManager.createSurveyRow(user.slackUser, "mbti")
         session.sendMessageToUser(user.slackUser, timeZoneMessage)
 
         sendSurveyMessage(session, user.slackUser, "mbti")
@@ -641,7 +640,7 @@ class UserInteraction(private val databaseManager: DatabaseManager) {
                 .addAttachment(slackMessage)
                 .withUnfurl(false)
                 .build()
-        databaseManager.createSurveyRow(user.slackUser, "PAEI")
+        databaseManager.createSurveyRow(user.slackUser, "paei")
         session.sendMessageToUser(user.slackUser, timeZoneMessage)
         sendSurveyMessage(session, user.slackUser, "paei")
     }
@@ -658,7 +657,7 @@ class UserInteraction(private val databaseManager: DatabaseManager) {
                 .addAttachment(slackMessage)
                 .withUnfurl(false)
                 .build()
-        databaseManager.createSurveyRow(user.slackUser, "VARK")
+        databaseManager.createSurveyRow(user.slackUser, "vark")
         session.sendMessageToUser(user.slackUser, introMessage)
         sendSurveyMessage(session, user.slackUser, "vark")
     }
